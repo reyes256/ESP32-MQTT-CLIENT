@@ -11,7 +11,10 @@ const char password[] = "";
 const char server[] = "broker.emqx.io";
 const int port = 1883;
 
-char ip[] = "";
+int payload_int = 0;
+String payload_string = "";
+
+const int LED = 2;
 
 void wifiInit() {
   Serial.print("\n\nConectándose a ");
@@ -30,31 +33,56 @@ void wifiInit() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  // Serial.print("Mensaje recibido [");
-  // Serial.print(topic);
-  // Serial.print("] ");
+  Serial.print("Mensaje recibido [");
+  Serial.print(topic);
+  Serial.print("] ");
 
-  // char payload_string[length + 1];
-  
-  // int resultI;
+  // Convert payload into integer
+  char payload_array[length + 1];
+  int resultI;
 
-  // memcpy(payload_string, payload, length);
-  // payload_string[length] = '\0';
-  // resultI = atoi(payload_string);
+  memcpy(payload_array, payload, length);
+  payload_array[length] = '\0';
+  resultI = atoi(payload_array);
   
-  // var = resultI;
+  payload_int = resultI;
 
-  // resultS = "";
+  Serial.println(payload_int);
   
+  // Convert payload into string
+  // payload_string = "";
+
   // for (int i=0;i<length;i++) {
-  //   resultS= resultS + (char)payload[i];
+  //   payload_string = payload_string + (char)payload[i];
   // }
-  // Serial.println();
+}
+
+void reconnect() {
+  while (!mqttClient.connected()) {
+    Serial.println("\nIniciando conexion con el Broker...");
+
+    if (mqttClient.connect("clientid123")) {
+      Serial.println("Conexion al Broker establecida.");
+
+      if(mqttClient.subscribe("led/status")){
+        Serial.println("Suscripción exitosa\n");
+      }else{
+        Serial.println("falló Suscripción");
+      }
+
+    } else {
+      Serial.print("Fallo, rc=");
+      Serial.print(mqttClient.state());
+
+      Serial.println("\nintentando de nuevo en 5 segundos");
+      delay(5000);
+    }
+  }
 }
 
 void setup() {
   Serial.begin(921600);
-  pinMode(2,OUTPUT);
+  pinMode(LED,OUTPUT);
 
   delay(10);
 
@@ -65,5 +93,19 @@ void setup() {
 }
 
 void loop() {
+  if (!mqttClient.connected()) {
+    reconnect();
+  }
 
+  mqttClient.loop();
+
+  if(payload_int == 0) {
+    digitalWrite(LED,LOW);
+  } else if (payload_int == 1) {
+    digitalWrite(LED,HIGH);
+  } else {
+    Serial.println("Instrucción no reconocida");
+  }
+
+  delay(2500);
 }
